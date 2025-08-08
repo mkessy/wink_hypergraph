@@ -9,4 +9,6 @@
 /tests
 /test_classifier.js
 
-/*.csv
+*.csv
+
+/models

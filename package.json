@@ -1,0 +1,35 @@
+{
+  "name": "semantic-atom-classifier",
+  "version": "1.0.0",
+  "description": "Semantic hypergraph atom classifier using Wink.js and Graphbrain training data",
+  "main": "semantic_atom_classifier.js",
+  "scripts": {
+    "start": "node semantic_atom_classifier.js",
+    "train": "node semantic_atom_classifier.js",
+    "test": "node test_classifier.js"
+  },
+  "dependencies": {
+    "compromise": "^14.14.4",
+    "csv-parser": "^3.2.0",
+    "wink-eng-lite-web-model": "^1.8.1",
+    "wink-naive-bayes-text-classifier": "^2.2.1",
+    "wink-nlp": "^2.4.0",
+    "wink-regression-tree": "^2.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0"
+  },
+  "keywords": [
+    "nlp",
+    "semantic-parsing",
+    "hypergraph",
+    "graphbrain",
+    "machine-learning",
+    "winkjs"
+  ],
+  "author": "AI Assistant",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
