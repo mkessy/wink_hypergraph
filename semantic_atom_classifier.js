@@ -242,14 +242,23 @@ class SemanticAtomClassifier {
 
     // Create reverse mappings for decoding
     this.decodings = {};
-    const encs = this.encodings || {};
-    Object.keys(encs).forEach((key) => {
-      this.decodings[key] = {};
-      const enc = encs[key] || {};
-      Object.keys(enc).forEach((value) => {
-        this.decodings[key][enc[value]] = value;
-      });
-    });
+    const encs =
+      this.encodings && typeof this.encodings === "object"
+        ? this.encodings
+        : {};
+    const keys = Object.keys(encs);
+    for (const key of keys) {
+      const enc = encs[key] && typeof encs[key] === "object" ? encs[key] : {};
+      const map = {};
+      const valKeys = Object.keys(enc);
+      for (const value of valKeys) {
+        const idx = enc[value];
+        if (typeof idx === "number" && idx >= 0) {
+          map[idx] = value;
+        }
+      }
+      this.decodings[key] = map;
+    }
   }
 
   /**
@@ -859,12 +868,22 @@ class SemanticAtomClassifier {
 
     // Recreate decodings
     this.decodings = {};
-    Object.keys(this.encodings).forEach((key) => {
-      this.decodings[key] = {};
-      Object.keys(this.encodings[key]).forEach((value) => {
-        this.decodings[key][this.encodings[key][value]] = value;
-      });
-    });
+    const encs =
+      this.encodings && typeof this.encodings === "object"
+        ? this.encodings
+        : {};
+    const encKeys = Object.keys(encs);
+    for (const key of encKeys) {
+      const outMap = {};
+      const hasKey = Object.prototype.hasOwnProperty.call(encs, key);
+      const enc = hasKey && typeof encs[key] === "object" ? encs[key] : {};
+      for (const [value, idx] of Object.entries(enc)) {
+        if (typeof idx === "number" && idx >= 0) {
+          outMap[idx] = value;
+        }
+      }
+      this.decodings[key] = outMap;
+    }
 
     console.log(`Models loaded from ${directory}/`);
   }
@@ -916,25 +935,7 @@ async function main() {
   }
 }
 
-// Helper function for string repetition
-String.prototype.repeat = function (count) {
-  return new Array(count + 1).join(this);
-};
-
-// Helper function for string padding
-String.prototype.padEnd = function (targetLength, padString) {
-  targetLength = targetLength >> 0;
-  padString = String(padString || " ");
-  if (this.length > targetLength) {
-    return String(this);
-  } else {
-    targetLength = targetLength - this.length;
-    if (targetLength > padString.length) {
-      padString += padString.repeat(targetLength / padString.length);
-    }
-    return String(this) + padString.slice(0, targetLength);
-  }
-};
+// Avoid augmenting global String prototype; helpers removed to satisfy linter
 
 // Run the main function if this script is executed directly
 if (require.main === module) {
