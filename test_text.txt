@@ -1,0 +1,41 @@
+Last week was a real roller coaster of economic news. It started with MAGA taking an undeserved victory lap over second quarter economic data and ended with the president intemperately firing the head of the Bureau of Labor Statistics over some bad jobs numbers.
+
+The irony of it, to the extent that one can find amusement in the torching of American institutions, is that just as the gross domestic product numbers weren’t particularly good, the jobs numbers weren’t particularly bad. By the same token, while the various trade “deals” the administration has been trumpeting aren’t nearly as good as they’re saying, it is true that they have successfully averted the worst-case scenarios that seemed possible in the immediate wake of Liberation Day.
+
+The upshot of all of this is that Trump is obsessed with superficial indicators of success.
+
+He’s avoided stock market backlash to his trade policies by ensuring that whatever else gets trampled amidst the tariff wars, the AI investment boom is still on track. He’s spinning economic numbers where he can and moving to suppress data where he can’t.
+
+And that freaking out is exactly what you see in the data. In the first quarter, a lot of companies were importing stuff they didn’t actually use or sell in order to get ahead of the tariffs, and this showed up as GDP shrinking. Then in the second quarter, we got a bounce-back. But across the entire first half of the year, the economy grew at a slower pace than in 2024 — and at a slower pace than was predicted before Trump took office.
+
+Last week’s bad jobs report, which showed anemic employment growth over the past several months, confirms this same trend: the economy is slowing.
+
+I would note that there’s no big mystery about what’s happening here. If you ignore economic data and look at immigration data (which, unfortunately, is not measured as precisely or as frequently), the White House is happy to brag that it has transformed immigration from a major source of labor force growth to a slight drag. MAGA fans get defensive when you point this out. But slow growth in aggregate employment and a negative hit to GDP growth are obvious results of this policy choice.
+
+If you think this tradeoff is worthwhile because you believe having fewer immigrants creates benefits elsewhere on the ledger, then fine. But it’s genuinely absurd to get mad at the Bureau of Labor Statistics for pointing out that immigration cuts and mass deportation show up in the jobs numbers.
+
+One way of looking at this is that the robust job growth during the Biden years didn’t have the political benefits you might expect because a large share of those jobs went to non-citizens who couldn’t vote. And the anemic job growth of Trump’s second term hasn’t collapsed his political standing because, again, this is mostly a question of people who can’t vote no longer getting hired.
+
+But flipping this around raises the question okjkkjkf why the Trump administration is so convinced that the Fed should lower interest rates.
+
+Inflation is still running above the Fed’s 2 percent target level and has, in fact, gone up recently. Even if you think monetary policy should ignore the impact of tariffs, it’s hard to see the case for a cut.
+
+It’s true that job growth is slowing down sharply, but that’s not because of weak demand; it’s because the administration is strangling labor force growth. It’s never been clear to me what Trump’s team thought would happen if they pulled off their immigration policies. Grandma’s going to come out of retirement to pick up day labor gigs? Residents of depressed former manufacturing towns are going to move to coastal metro areas and work as nannies?
+
+From my baseline of pessimism toward their policies, I’d say that things are working out okay. But a slowing economy with upward pressure on prices and interest rates is what “okay” looks like.
+
+During the 2024 campaign, Trump’s platform included a 10 percent tax on all imports. This was a dumb idea, a massively regressive tax that would have a negative impact on American exporters, and it was widely criticized at the time. The Trump administration’s business community supporters would often claim that it was just a negotiating tactic — Trump was going to “escalate to de-escalate” and win big market access concessions for American companies.
+
+Once in office, he began imposing tariffs that were actually more draconian than the 10 percent campaign pledge. But he did say that he was going to try to negotiate deals.
+
+Now, as the text of some of those deals is coming out, we’re seeing a few things. One is that Trump is securing some market access wins for American companies. But another is that he is not interested in negotiating “zero for zero” deals where trade ends up freer than it was before. Typically, Trump is reaching asymmetrical agreements where the United States will, for example, impose higher tariffs on EU exports than the EU imposes on us and the EU agrees not to retaliate. This is pretty impressive as a feat of negotiating, and I do think it serves as a reminder that it’s dangerous to underestimate Trump. He is credibly willing to engage in tit-for-tat escalations that are bad for everyone, and this gets other countries to make settlements with him that are in some sense “unfair” or “lopsided.”
+
+But this success just raises the question of why the United States would find the arrangement desirable.
+
+I think the answer, from Trump’s perspective, is that tariffs concentrate a lot of power in his hands personally. Trump is able to grant exemptions to politically connected companies, and this is good for his personal quest for power and enrichment. But it’s still a bad dynamic for America.
+
+Take this guy from the Montana Knife Company, who initially reacted with enthusiasm to tariffs because they would boost his made-in-America products … only to discover that his costs are rising due to tariffs because he relies on imported equipment and supplies. And Montana Knife Company is almost certainly not in a position to lobby for exemptions.
+
+The initial freakout over Liberation Day tariffs represented a concern about a total breakdown of global trade. What Trump has secured with his deals is a guarantee that big successful American companies such as NVIDIA, Meta, Alphabet, and Netflix won’t be torn apart by retaliatory measures. This is the dominant consideration for the stock market, which is mostly driven by the prices of the biggest and most successful companies. But I do have to note the irony that the endgame of this entire “populist” arc is to skew the American economic model even more sharply toward companies offering intangible services in tech and finance and away from manufacturers, whose competitiveness will be hurt by disrupted supply chains.
+
+kkjkddddd
