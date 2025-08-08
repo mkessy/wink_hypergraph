@@ -32,6 +32,14 @@ export const size = (store: KeyValueStore): number => HashMap.size(store.map);
 export const values = (store: KeyValueStore): ReadonlyArray<Hedge> =>
   Array.from(HashMap.values(store.map));
 
+export const getByKey = (
+  store: KeyValueStore,
+  key: string
+): Option.Option<Hedge> => HashMap.get(store.map, key);
+
+export const get = (store: KeyValueStore, edge: Hedge): Option.Option<Hedge> =>
+  getByKey(store, keyOf(edge));
+
 export const findByPrefix = (
   store: KeyValueStore,
   prefix: string

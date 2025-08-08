@@ -26,9 +26,10 @@
     "coverage": "vitest --coverage"
   },
   "dependencies": {
-    "effect": "latest",
+    "@effect/printer": "^0.45.0",
     "compromise": "^14.14.4",
     "csv-parser": "^3.2.0",
+    "effect": "latest",
     "wink-eng-lite-web-model": "^1.8.1",
     "wink-naive-bayes-text-classifier": "^2.2.1",
     "wink-nlp": "^2.4.0",

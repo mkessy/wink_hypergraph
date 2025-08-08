@@ -73,6 +73,11 @@ export const size = (hg: Hypergraph): number => KV.size(hg.kv);
 export const values = (hg: Hypergraph): ReadonlyArray<Hedge> =>
   KV.values(hg.kv);
 
+export const get = (hg: Hypergraph, edge: Hedge) => KV.get(hg.kv, edge);
+
+export const getByKey = (hg: Hypergraph, key: string) =>
+  KV.getByKey(hg.kv, key);
+
 export const findByConnector = (
   hg: Hypergraph,
   connKey: string
