@@ -523,6 +523,14 @@ class SemanticAtomClassifier {
     });
     this.bayesClassifier.consolidate();
 
+    console.log("Training Compromise-based classifier...");
+    // Train Compromise classifier with compromise-specific features
+    this.trainingData.forEach((row) => {
+      const compFeatures = this.extractCompromiseOnlyFeatures(row);
+      this.compromiseClassifier.learn(compFeatures, row.type_flag);
+    });
+    this.compromiseClassifier.consolidate();
+
     console.log("Training Regression Tree classifier...");
 
     // Configure the regression tree
@@ -809,6 +817,13 @@ class SemanticAtomClassifier {
       JSON.stringify(bayesModel, null, 2)
     );
 
+    // Save Compromise classifier model
+    const compromiseModel = this.compromiseClassifier.exportJSON();
+    fs.writeFileSync(
+      path.join(directory, "compromise_model.json"),
+      JSON.stringify(compromiseModel, null, 2)
+    );
+
     // Save encodings
     fs.writeFileSync(
       path.join(directory, "encodings.json"),
@@ -827,6 +842,15 @@ class SemanticAtomClassifier {
       fs.readFileSync(path.join(directory, "bayes_model.json"), "utf8")
     );
     this.bayesClassifier.importJSON(bayesModel);
+    // CRITICAL: Must consolidate after importing to enable predictions
+    this.bayesClassifier.consolidate();
+
+    // Load Compromise classifier model
+    const compromiseModel = JSON.parse(
+      fs.readFileSync(path.join(directory, "compromise_model.json"), "utf8")
+    );
+    this.compromiseClassifier.importJSON(compromiseModel);
+    this.compromiseClassifier.consolidate();
 
     // Load encodings
     this.encodings = JSON.parse(
