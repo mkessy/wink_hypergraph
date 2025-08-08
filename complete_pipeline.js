@@ -12,7 +12,7 @@ const SemanticAtomClassifier = require("./semantic_atom_classifier");
 const {
   HypergraphParser,
   parseClassifiedText,
-} = require("./hyper_graph_parser");
+} = require("./hyper_graph_parser_fixed");
 
 class CompletePipeline {
   constructor() {
