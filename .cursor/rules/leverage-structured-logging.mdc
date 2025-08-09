@@ -1,0 +1,13 @@
+---
+description: "Leverage Effect's built-in structured logging."
+globs:
+alwaysApply: false
+---
+
+- Title: Leverage Effect's Built-in Structured Logging
+- Id: leverage-structured-logging
+- Skill Level: intermediate
+- Use Cases: Error Management
+- Tags: logging, logger, structured-logging, observability, debug
+
+@content/published/leverage-structured-logging.mdx
