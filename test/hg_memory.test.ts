@@ -20,9 +20,11 @@ describe("memory Hypergraph indices", () => {
     hg = HG.insert(hg, e3);
 
     expect(HG.size(hg)).toBe(3);
-    expect(HG.values(hg).map(toStr).sort()).toEqual(
-      [e1, e2, e3].map(toStr).sort()
-    );
+    expect(
+      HG.values(hg)
+        .map((e) => toStr(e, { rootsOnly: true }))
+        .sort()
+    ).toEqual([e1, e2, e3].map((e) => toStr(e, { rootsOnly: true })).sort());
 
     const byConn = HG.findByConnector(hg, toStr(atom("+/B/.")));
     expect(Chunk.size(byConn)).toBe(3);

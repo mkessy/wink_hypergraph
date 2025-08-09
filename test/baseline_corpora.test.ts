@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import fs from "node:fs";
+import { describe, it, beforeAll } from "vitest";
+import * as fs from "node:fs";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const {

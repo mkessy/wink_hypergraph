@@ -16,7 +16,9 @@ describe("memory KeyValue", () => {
 
     expect(KV.size(kv)).toBe(3);
     expect(KV.has(kv, e1)).toBe(true);
-    expect(KV.values(kv).map(toStr).length).toBe(3);
+    expect(KV.values(kv).map((e) => toStr(e, { rootsOnly: true })).length).toBe(
+      3
+    );
 
     // prefix
     const prefix = toStr(atom("+/B/."));
@@ -24,8 +26,12 @@ describe("memory KeyValue", () => {
 
     // pattern
     const pattern = hedge([atom("+/B/."), atom("*"), atom("john/C")]);
-    expect(KV.findByPattern(kv, pattern).map(toStr).sort()).toEqual(
-      [e2, e3].map(toStr).sort()
+    expect(
+      KV.findByPattern(kv, pattern)
+        .map((e) => toStr(e, { rootsOnly: true }))
+        .sort()
+    ).toEqual(
+      [e2, e3].map((e) => toStr(e, { rootsOnly: true })).sort()
     );
 
     kv = KV.remove(kv, e2);
