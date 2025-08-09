@@ -1,4 +1,4 @@
-import { HashMap, HashSet, Chunk, Option, pipe } from "effect";
+import { HashMap, HashSet, Chunk, Option, pipe, Effect } from "effect";
 import * as Stream from "effect/Stream";
 import { Atom, Hedge, isAtom } from "../hg/model.js";
 import { toStr } from "../hg/print.js";
@@ -18,6 +18,14 @@ export interface Hypergraph {
   readonly byRoot: HashMap.HashMap<string, HashSet.HashSet<string>>;
   readonly byArgrole: HashMap.HashMap<string, HashSet.HashSet<string>>;
   readonly byHeadAtom: HashMap.HashMap<string, HashSet.HashSet<string>>;
+  readonly attrs: HashMap.HashMap<string, HashMap.HashMap<string, string>>;
+  readonly byArity: HashMap.HashMap<string, HashSet.HashSet<string>>;
+  readonly byArgroleSet: HashMap.HashMap<string, HashSet.HashSet<string>>;
+  readonly byArgRootN: HashMap.HashMap<
+    number,
+    HashMap.HashMap<string, HashSet.HashSet<string>>
+  >;
+  readonly byArgsMultiset: HashMap.HashMap<string, HashSet.HashSet<string>>;
 }
 
 export const make = (): Hypergraph => ({
@@ -27,6 +35,11 @@ export const make = (): Hypergraph => ({
   byRoot: HashMap.empty(),
   byArgrole: HashMap.empty(),
   byHeadAtom: HashMap.empty(),
+  attrs: HashMap.empty(),
+  byArity: HashMap.empty(),
+  byArgroleSet: HashMap.empty(),
+  byArgRootN: HashMap.empty(),
+  byArgsMultiset: HashMap.empty(),
 });
 
 const addToIndex = (
@@ -56,6 +69,45 @@ const removeFromIndex = (
     })
   );
 
+const addToNestedIndex = (
+  nested: HashMap.HashMap<
+    number,
+    HashMap.HashMap<string, HashSet.HashSet<string>>
+  >,
+  position: number,
+  key: string,
+  edgeKey: string
+): HashMap.HashMap<
+  number,
+  HashMap.HashMap<string, HashSet.HashSet<string>>
+> => {
+  const innerOpt = HashMap.get(nested, position);
+  const inner =
+    innerOpt._tag === "Some"
+      ? innerOpt.value
+      : HashMap.empty<string, HashSet.HashSet<string>>();
+  const updatedInner = addToIndex(inner, key, edgeKey);
+  return HashMap.set(nested, position, updatedInner);
+};
+
+const removeFromNestedIndex = (
+  nested: HashMap.HashMap<
+    number,
+    HashMap.HashMap<string, HashSet.HashSet<string>>
+  >,
+  position: number,
+  key: string,
+  edgeKey: string
+): HashMap.HashMap<
+  number,
+  HashMap.HashMap<string, HashSet.HashSet<string>>
+> => {
+  const innerOpt = HashMap.get(nested, position);
+  if (innerOpt._tag === "None") return nested;
+  const updatedInner = removeFromIndex(innerOpt.value, key, edgeKey);
+  return HashMap.set(nested, position, updatedInner);
+};
+
 export const insert = (hg: Hypergraph, edge: Hedge): Hypergraph => {
   const key = toStr(edge);
   const conn = connector(edge);
@@ -83,7 +135,55 @@ export const insert = (hg: Hypergraph, edge: Hedge): Hypergraph => {
     const head = edge.items[1] as Atom;
     byHeadAtom = addToIndex(byHeadAtom, head.text, key);
   }
-  return { kv, byConnector, byType, byRoot, byArgrole, byHeadAtom };
+  // byArity
+  const arity = Math.max(0, (edge.items?.length ?? 1) - 1);
+  const byArity = addToIndex(hg.byArity, String(arity), key);
+  // byArgroleSet (normalized, sorted letters)
+  let byArgroleSet = hg.byArgroleSet;
+  const rolesForSet = argrolesOf(edge);
+  if (rolesForSet && rolesForSet.length > 0) {
+    const letters =
+      rolesForSet[0] === "{" ? rolesForSet.slice(1, -1) : rolesForSet;
+    const norm = letters.replace(/[\s,]/g, "").split("").sort().join("");
+    if (norm.length > 0) byArgroleSet = addToIndex(byArgroleSet, norm, key);
+  }
+  // byArgRootN (positional roots for atom arguments)
+  let byArgRootN = hg.byArgRootN;
+  const argCount = Math.max(0, (edge.items?.length ?? 1) - 1);
+  for (let i = 1; i <= argCount; i++) {
+    const arg = edge.items[i] as any;
+    if (isAtom(arg)) {
+      const root = (arg as Atom).text.split("/")[0] ?? "";
+      if (root) byArgRootN = addToNestedIndex(byArgRootN, i, root, key);
+    }
+  }
+  // byArgsMultiset (sorted multiset of atom argument roots)
+  let byArgsMultiset = hg.byArgsMultiset;
+  const rootsForMultiset: string[] = [];
+  for (let i = 1; i <= argCount; i++) {
+    const arg = edge.items[i] as any;
+    if (isAtom(arg)) {
+      const root = (arg as Atom).text.split("/")[0] ?? "";
+      if (root) rootsForMultiset.push(root);
+    }
+  }
+  if (rootsForMultiset.length > 0) {
+    const keyMs = rootsForMultiset.sort().join("|");
+    byArgsMultiset = addToIndex(byArgsMultiset, keyMs, key);
+  }
+  return {
+    kv,
+    byConnector,
+    byType,
+    byRoot,
+    byArgrole,
+    byHeadAtom,
+    attrs: hg.attrs,
+    byArity,
+    byArgroleSet,
+    byArgRootN,
+    byArgsMultiset,
+  };
 };
 
 export const remove = (hg: Hypergraph, edge: Hedge): Hypergraph => {
@@ -110,7 +210,56 @@ export const remove = (hg: Hypergraph, edge: Hedge): Hypergraph => {
     const head = edge.items[1] as Atom;
     byHeadAtom = removeFromIndex(byHeadAtom, head.text, key);
   }
-  return { kv, byConnector, byType, byRoot, byArgrole, byHeadAtom };
+  // byArity
+  const arity = Math.max(0, (edge.items?.length ?? 1) - 1);
+  const byArity = removeFromIndex(hg.byArity, String(arity), key);
+  // byArgroleSet
+  let byArgroleSet = hg.byArgroleSet;
+  const rolesForSet = argrolesOf(edge);
+  if (rolesForSet && rolesForSet.length > 0) {
+    const letters =
+      rolesForSet[0] === "{" ? rolesForSet.slice(1, -1) : rolesForSet;
+    const norm = letters.replace(/[\s,]/g, "").split("").sort().join("");
+    if (norm.length > 0)
+      byArgroleSet = removeFromIndex(byArgroleSet, norm, key);
+  }
+  // byArgRootN
+  let byArgRootN = hg.byArgRootN;
+  const argCount = Math.max(0, (edge.items?.length ?? 1) - 1);
+  for (let i = 1; i <= argCount; i++) {
+    const arg = edge.items[i] as any;
+    if (isAtom(arg)) {
+      const root = (arg as Atom).text.split("/")[0] ?? "";
+      if (root) byArgRootN = removeFromNestedIndex(byArgRootN, i, root, key);
+    }
+  }
+  // byArgsMultiset
+  let byArgsMultiset = hg.byArgsMultiset;
+  const rootsForMultiset: string[] = [];
+  for (let i = 1; i <= argCount; i++) {
+    const arg = edge.items[i] as any;
+    if (isAtom(arg)) {
+      const root = (arg as Atom).text.split("/")[0] ?? "";
+      if (root) rootsForMultiset.push(root);
+    }
+  }
+  if (rootsForMultiset.length > 0) {
+    const keyMs = rootsForMultiset.sort().join("|");
+    byArgsMultiset = removeFromIndex(byArgsMultiset, keyMs, key);
+  }
+  return {
+    kv,
+    byConnector,
+    byType,
+    byRoot,
+    byArgrole,
+    byHeadAtom,
+    attrs: hg.attrs,
+    byArity,
+    byArgroleSet,
+    byArgRootN,
+    byArgsMultiset,
+  };
 };
 
 export const size = (hg: Hypergraph): number => KV.size(hg.kv);
@@ -297,33 +446,49 @@ const keysFromIndex = (
     Option.match({ onNone: () => HashSet.empty<string>(), onSome: (s) => s })
   );
 
+const keysFromNestedIndex = (
+  nested: HashMap.HashMap<
+    number,
+    HashMap.HashMap<string, HashSet.HashSet<string>>
+  >,
+  position: number,
+  key: string
+): HashSet.HashSet<string> => {
+  const inner = HashMap.get(nested, position);
+  return inner._tag === "Some"
+    ? keysFromIndex(inner.value, key)
+    : HashSet.empty<string>();
+};
+
 const candidateKeysForPattern = (
   hg: Hypergraph,
   pattern: Hedge
 ): HashSet.HashSet<string> => {
-  let candidates: HashSet.HashSet<string> | null = null;
+  const candidateSets: Array<HashSet.HashSet<string>> = [];
   // connector
   const conn = pattern.items?.[0];
   if (conn && isAtom(conn as any)) {
     const text = (conn as Atom).text;
     if (isConcreteAtomText(text)) {
-      const set = keysFromIndex(hg.byConnector, text);
-      candidates = candidates ? intersect(candidates, set) : set;
+      candidateSets.push(keysFromIndex(hg.byConnector, text));
     }
   }
-  // first arg
+  // first arg (head)
   const arg1 = pattern.items?.[1];
   if (arg1 && isAtom(arg1 as any) && isConcreteAtomText((arg1 as Atom).text)) {
     const text = (arg1 as Atom).text;
     const root = text.split("/")[0] ?? "";
-    // If head specifies roles or unordered braces, degrade to root index for broader candidate selection
     const useRoot = text.includes("{") || text.includes(".");
-    const set = useRoot
-      ? keysFromIndex(hg.byRoot, root)
-      : keysFromIndex(hg.byHeadAtom, text);
-    candidates = candidates ? intersect(candidates, set) : set;
+    candidateSets.push(
+      useRoot
+        ? keysFromIndex(hg.byRoot, root)
+        : keysFromIndex(hg.byHeadAtom, text)
+    );
   }
-  // any concrete atoms by root
+  // arity (number of args)
+  const arity = Math.max(0, (pattern.items?.length ?? 1) - 1);
+  candidateSets.push(keysFromIndex(hg.byArity, String(arity)));
+  // any concrete atoms by root anywhere in pattern
   const collectAtoms = (e: Atom | Hedge, acc: string[]) => {
     if (isAtom(e)) {
       const t = e.text;
@@ -336,8 +501,7 @@ const candidateKeysForPattern = (
   collectAtoms(pattern as any, roots);
   for (const r of roots) {
     if (!r) continue;
-    const set = keysFromIndex(hg.byRoot, r);
-    candidates = candidates ? intersect(candidates, set) : set;
+    candidateSets.push(keysFromIndex(hg.byRoot, r));
   }
   // argroles on connector (letters)
   if (conn && isAtom(conn as any)) {
@@ -347,12 +511,109 @@ const candidateKeysForPattern = (
       if (typeParts.length > 1) {
         const roles = typeParts[1];
         const letters = roles[0] === "{" ? roles.slice(1, -1) : roles;
-        for (const r of letters.replace(/[,\s]/g, "")) {
-          const set = keysFromIndex(hg.byArgrole, r);
-          candidates = candidates ? intersect(candidates, set) : set;
+        for (const r of letters.replace(/[\,\s]/g, "")) {
+          candidateSets.push(keysFromIndex(hg.byArgrole, r));
         }
+        // normalized argrole set (unordered)
+        const norm = letters.replace(/[\s,]/g, "").split("").sort().join("");
+        if (norm.length > 0)
+          candidateSets.push(keysFromIndex(hg.byArgroleSet, norm));
       }
     }
   }
-  return candidates ?? HashSet.empty<string>();
+  // positional argument roots (if concrete)
+  for (let i = 1; i <= arity; i++) {
+    const arg = pattern.items?.[i] as any;
+    if (arg && isAtom(arg) && isConcreteAtomText((arg as Atom).text)) {
+      const root = (arg as Atom).text.split("/")[0] ?? "";
+      if (root) candidateSets.push(keysFromNestedIndex(hg.byArgRootN, i, root));
+    }
+  }
+  // multiset of argument roots (unordered)
+  if (arity > 0) {
+    const msRoots: string[] = [];
+    for (let i = 1; i <= arity; i++) {
+      const arg = pattern.items?.[i] as any;
+      if (arg && isAtom(arg) && isConcreteAtomText((arg as Atom).text)) {
+        msRoots.push((arg as Atom).text.split("/")[0] ?? "");
+      }
+    }
+    if (msRoots.length > 0) {
+      const keyMs = msRoots.sort().join("|");
+      candidateSets.push(keysFromIndex(hg.byArgsMultiset, keyMs));
+    }
+  }
+  // Selectivity: intersect non-empty sets starting from smallest
+  const nonEmpty = candidateSets.filter((s) => HashSet.size(s) > 0);
+  if (nonEmpty.length === 0) {
+    // fallback: no selective hint → search all keys
+    return HashSet.fromIterable(HashMap.keys(hg.kv.map));
+  }
+  nonEmpty.sort((a, b) => HashSet.size(a) - HashSet.size(b));
+  let acc = nonEmpty[0]!;
+  for (let i = 1; i < nonEmpty.length; i++) acc = intersect(acc, nonEmpty[i]!);
+  return acc;
 };
+
+// ---------- Attributes API ----------
+
+export const setAttribute = (
+  hg: Hypergraph,
+  edge: Hedge,
+  attribute: string,
+  value: string
+): Hypergraph => {
+  const key = toStr(edge);
+  const current = HashMap.get(hg.attrs, key);
+  const updated = HashMap.set(
+    current._tag === "Some" ? current.value : HashMap.empty<string, string>(),
+    attribute,
+    value
+  );
+  return { ...hg, attrs: HashMap.set(hg.attrs, key, updated) };
+};
+
+export const getStrAttribute = (
+  hg: Hypergraph,
+  edge: Hedge,
+  attribute: string,
+  orElse: string | null = null
+): string | null => {
+  const key = toStr(edge);
+  const mp = HashMap.get(hg.attrs, key);
+  if (mp._tag === "None") return orElse;
+  const v = HashMap.get(mp.value, attribute);
+  return v._tag === "Some" ? v.value : orElse;
+};
+
+export const incAttribute = (
+  hg: Hypergraph,
+  edge: Hedge,
+  attribute: string
+): Hypergraph => {
+  const cur = Number(getStrAttribute(hg, edge, attribute, "0") ?? 0);
+  return setAttribute(hg, edge, attribute, String(cur + 1));
+};
+
+export const decAttribute = (
+  hg: Hypergraph,
+  edge: Hedge,
+  attribute: string
+): Hypergraph => {
+  const cur = Number(getStrAttribute(hg, edge, attribute, "0") ?? 0);
+  return setAttribute(hg, edge, attribute, String(cur - 1));
+};
+
+// ---------- Degree / Star ----------
+
+export const star = (
+  hg: Hypergraph,
+  atomRootOrText: string
+): Chunk.Chunk<Hedge> =>
+  keysToEdgeStream(hg, keysFromIndex(hg.byRoot, atomRootOrText)).pipe(
+    Stream.runCollect,
+    Effect.runSync
+  );
+
+export const degree = (hg: Hypergraph, atomRootOrText: string): number =>
+  HashSet.size(keysFromIndex(hg.byRoot, atomRootOrText));

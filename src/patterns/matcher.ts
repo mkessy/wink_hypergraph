@@ -1,6 +1,6 @@
 import { Atom, Hedge, isAtom, isHedge } from "../hg/model.js";
 import { isWildcard, isUnorderedPattern } from "./properties.js";
-import { Chunk, Option, HashSet } from "effect";
+import { Chunk, Option, HashSet, pipe } from "effect";
 import { argrolesOf, connector } from "../hg/ops.js";
 
 export const normalizeUnorderedBracesText = (text: string): string => {
@@ -78,32 +78,38 @@ export const match = (value: Atom | Hedge, pattern: Atom | Hedge): boolean => {
 export const filterMatches = (
   edges: Iterable<Hedge>,
   pattern: Hedge
-): Chunk.Chunk<Hedge> => {
-  let out = Chunk.empty<Hedge>();
-  for (const e of edges) if (match(e, pattern)) out = Chunk.append(out, e);
-  return out;
-};
+): Chunk.Chunk<Hedge> =>
+  pipe(
+    Chunk.fromIterable(edges),
+    Chunk.filter((edge) => match(edge, pattern))
+  );
 
 export const findFirstMatch = (
   edges: Iterable<Hedge>,
   pattern: Hedge
 ): Option.Option<Hedge> => {
-  for (const e of edges) if (match(e, pattern)) return Option.some(e);
-  return Option.none();
+  return pipe(
+    Chunk.fromIterable(edges),
+    Chunk.findFirst((edge) => match(edge, pattern))
+  );
 };
 
 export const matchAll = (
   values: Iterable<Atom | Hedge>,
   pattern: Atom | Hedge
 ): boolean => {
-  for (const v of values) if (!match(v as any, pattern as any)) return false;
-  return true;
+  return pipe(
+    Chunk.fromIterable(values),
+    Chunk.every((v) => match(v as any, pattern as any))
+  );
 };
 
 export const matchAny = (
   values: Iterable<Atom | Hedge>,
   pattern: Atom | Hedge
 ): boolean => {
-  for (const v of values) if (match(v as any, pattern as any)) return true;
-  return false;
+  return pipe(
+    Chunk.fromIterable(values),
+    Chunk.some((v) => match(v as any, pattern as any))
+  );
 };
