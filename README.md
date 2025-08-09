@@ -18,30 +18,65 @@ npm install
 ```
 
 Required models directory with pre-trained classifiers:
-- `models/bayes_model.json` 
+
+- `models/bayes_model.json`
 - `models/compromise_model.json`
 - `models/encodings.json`
 
 ## 🔧 Quick Start
 
 ```javascript
-const { ProductionHypergraphParser } = require('./production_hypergraph_parser');
+const {
+  ProductionHypergraphParser,
+} = require("./production_hypergraph_parser.cjs");
 
 async function example() {
   const parser = new ProductionHypergraphParser({
     enableBM25: true,
     enableEntityPreprocessing: true,
-    enablePunctuationHandling: true
+    enablePunctuationHandling: true,
+    bm25: {
+      // optionally inject a pre-trained wink BM25 instance
+      // vectorizer: BM25Vectorizer({ k1: 1.2, b: 0.75, k: 1, norm: 'l2' }),
+      cacheVectors: true,
+    },
+    entityPreprocessing: {
+      // conservative auto-detect by default
+      autoDetect: true,
+      // optional user-provided phrases → treated as compounds
+      compoundList: ["New York"],
+      // optional typed map of phrases
+      compoundMap: { "Harvard University": "organization" },
+      maxCompoundWords: 4,
+      minFrequency: 2,
+    },
   });
-  
+
   await parser.initialize();
-  
+
   const result = await parser.parse("Dr. Smith works at Harvard University!");
-  
+
   console.log("Hypergraph:", result.hypergraphString);
   console.log("Entities:", result.entities);
   console.log("Metrics:", result.metrics);
 }
+```
+
+### BM25 injection and caching
+
+You can inject an external wink `BM25Vectorizer` and enable/disable per-parse token vector caching:
+
+```js
+const bm25 = require("wink-nlp/utilities/bm25-vectorizer")({
+  k1: 1.2,
+  b: 0.75,
+  k: 1,
+  norm: "l2",
+});
+const parser = new ProductionHypergraphParser({
+  enableBM25: true,
+  bm25: { vectorizer: bm25, cacheVectors: true },
+});
 ```
 
 ## 📊 Output Format
@@ -50,14 +85,14 @@ The parser returns a comprehensive `ParsingResult` object:
 
 ```typescript
 interface ParsingResult {
-  originalText: string;           // Input text
-  preprocessedText: string;       // Normalized text
-  atoms: AtomClassification[];    // Individual atom classifications
-  entities: DetectedEntity[];     // Compound entities found
-  hypergraph: HypergraphEdge;     // Parsed structure
-  hypergraphString: string;       // String representation
-  metrics: ParsingMetrics;        // Performance data
-  metadata: object;               // Parser info
+  originalText: string; // Input text
+  preprocessedText: string; // Normalized text
+  atoms: AtomClassification[]; // Individual atom classifications
+  entities: DetectedEntity[]; // Compound entities found
+  hypergraph: HypergraphEdge; // Parsed structure
+  hypergraphString: string; // String representation
+  metrics: ParsingMetrics; // Performance data
+  metadata: object; // Parser info
 }
 ```
 
@@ -88,7 +123,7 @@ interface ParsingResult {
       endPosition: 9
     },
     {
-      text: "Harvard University", 
+      text: "Harvard University",
       compound: "harvard_university",
       type: "organization",
       words: ["Harvard", "University"],
@@ -104,7 +139,7 @@ interface ParsingResult {
         type: "hyperedge",
         elements: [
           "works/Pd.so",
-          "dr._smith/Cp", 
+          "dr._smith/Cp",
           "harvard_university/Cp"
         ]
       },
@@ -130,13 +165,15 @@ interface ParsingResult {
 ### Entity Preprocessing
 
 **Before:**
-```
+
+```text
 Input: "New York is a major city"
 Output: (york/C new/M) // "New" incorrectly modifies "York"
 ```
 
 **After:**
-```
+
+```text
 Input: "New York is a major city"
 Output: new_york/Cp // Single semantic unit preserved
 ```
@@ -158,11 +195,11 @@ Output: new_york/Cp // Single semantic unit preserved
 
 ```javascript
 const parser = new ProductionHypergraphParser({
-  debug: false,                          // Enable debug logging
-  enableBM25: true,                      // Semantic similarity scoring
-  enableEntityPreprocessing: true,      // Compound entity detection  
-  enablePunctuationHandling: true,      // Punctuation integration
-  maxIterations: 50                     // Max parsing iterations
+  debug: false, // Enable debug logging
+  enableBM25: true, // Semantic similarity scoring
+  enableEntityPreprocessing: true, // Compound entity detection
+  enablePunctuationHandling: true, // Punctuation integration
+  maxIterations: 50, // Max parsing iterations
 });
 ```
 
@@ -175,7 +212,7 @@ const parser = new ProductionHypergraphParser({
 
 ## 🏗️ Architecture
 
-```
+```text
 Text Input
     ↓
 ┌─────────────────────────┐
@@ -207,6 +244,7 @@ Typed Production Output
 ### `ProductionHypergraphParser`
 
 #### Constructor
+
 ```javascript
 new ProductionHypergraphParser(options?)
 ```
@@ -219,22 +257,31 @@ new ProductionHypergraphParser(options?)
 
 #### Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enableBM25` | boolean | true | Enable semantic similarity |
-| `enableEntityPreprocessing` | boolean | true | Enable compound entities |
-| `enablePunctuationHandling` | boolean | true | Handle punctuation |
-| `maxIterations` | number | 50 | Max parsing iterations |
-| `debug` | boolean | false | Enable debug output |
+| Option                                 | Type                  | Default | Description                                  |
+| -------------------------------------- | --------------------- | ------- | -------------------------------------------- |
+| `enableBM25`                           | boolean               | true    | Enable semantic similarity                   |
+| `enableEntityPreprocessing`            | boolean               | true    | Enable compound entities                     |
+| `enablePunctuationHandling`            | boolean               | true    | Handle punctuation                           |
+| `maxIterations`                        | number                | 50      | Max parsing iterations                       |
+| `bm25.vectorizer`                      | object                | null    | Inject external wink BM25 instance           |
+| `bm25.cacheVectors`                    | boolean               | true    | Cache BM25 token vectors during parse        |
+| `entityPreprocessing.autoDetect`       | boolean               | false   | Use Compromise to detect multi-word entities |
+| `entityPreprocessing.compoundList`     | string[]              | []      | Force specific phrases to be compounds       |
+| `entityPreprocessing.compoundMap`      | Record<string,string> | {}      | Force phrases with types                     |
+| `entityPreprocessing.maxCompoundWords` | number                | 4       | Upper bound on compound length               |
+| `entityPreprocessing.minFrequency`     | number                | 2       | Min occurrences for non-NE compounds         |
+| `debug`                                | boolean               | false   | Enable debug output                          |
 
 ## 🧪 Testing
 
 Run the production parser demo:
+
 ```bash
-node production_hypergraph_parser.js
+node production_hypergraph_parser.cjs
 ```
 
 Compare with other implementations:
+
 ```bash
 node final_validation_test.js
 ```

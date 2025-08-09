@@ -78,6 +78,9 @@ const program = (filePath: string, maxSentences: number, concurrency: number) =>
       enableBM25: true,
       enableEntityPreprocessing: true,
       enablePunctuationHandling: true,
+      bm25: {
+        cacheVectors: true,
+      },
     });
     yield* bench(
       "parser-initialize",
@@ -121,6 +124,15 @@ const program = (filePath: string, maxSentences: number, concurrency: number) =>
             atom(":/J/."),
             hedge([atom("so/J"), atom("*")] as any) as any,
             atom("*"),
+          ] as any),
+        ],
+        [
+          "unordered hear/Pd.{os} pattern",
+          hedge([
+            atom("+/B/."),
+            atom("hear/Pd.{os}"),
+            atom("alice/C"),
+            atom("bob/C"),
           ] as any),
         ],
       ];

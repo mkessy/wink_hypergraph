@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* @ts-nocheck */
 
 /**
  * Production-Ready Semantic Hypergraph Parser
@@ -100,6 +101,25 @@ class ProductionHypergraphParser {
         maxCompoundWords: 4,
         minFrequency: 2, // require at least this many occurrences if not a named entity
         allowFunctionWords: ["of"], // permitted inner function words in compounds
+        stopWords: [
+          // conservative stoplist to reduce noisy compounds
+          "the",
+          "a",
+          "an",
+          "and",
+          "or",
+          "but",
+          "to",
+          "in",
+          "on",
+          "for",
+          "at",
+          "by",
+          "with",
+        ],
+        // extra guards
+        maxSpanChars: 60,
+        requireCapitalizedForNounNoun: true,
         ...(options.entityPreprocessing || {}),
       },
       ...options,
@@ -107,6 +127,7 @@ class ProductionHypergraphParser {
         coherenceMode: options.bm25?.coherenceMode || "adjacent", // "adjacent" | "all"
         maxCoherenceWindow: options.bm25?.maxCoherenceWindow || 10,
         vectorizer: options.bm25?.vectorizer || null,
+        cacheVectors: options.bm25?.cacheVectors !== false,
         ...mergedBm25,
       },
     };
@@ -527,8 +548,14 @@ class ProductionHypergraphParser {
     const properChains = compromiseDoc.match("#ProperNoun{2,}").json();
     const nounNoun = compromiseDoc.match("#Noun #Noun").json();
 
+    // Optionally restrict noun-noun to capitalized starts for conservatism
+    const conservativeNounNoun = this.options.entityPreprocessing
+      ?.requireCapitalizedForNounNoun
+      ? nounNoun.filter((p) => /[A-Z]/.test((p.text || "").charAt(0)))
+      : nounNoun;
+
     const candidates = this.options.entityPreprocessing?.autoDetect
-      ? [...properChains, ...nounNoun]
+      ? [...properChains, ...conservativeNounNoun]
       : [];
     for (const phrase of candidates) {
       const text = (phrase.text || "").trim();
@@ -537,6 +564,9 @@ class ProductionHypergraphParser {
       if (words.length < 2 || words.length > maxWords) continue;
       // Reject if ends with punctuation or contains comma/ellipsis/dash
       if (/[,.…—-]$/.test(text) || /[,.…—-]/.test(text)) continue;
+      // Reject if total span too long
+      if (text.length > (this.options.entityPreprocessing?.maxSpanChars ?? 60))
+        continue;
       // Allow only inner function words if whitelisted
       const inner = words.slice(1, -1).map((w) => w.toLowerCase());
       const allowed =
@@ -544,21 +574,8 @@ class ProductionHypergraphParser {
       if (
         inner.some(
           (w) =>
-            [
-              "the",
-              "a",
-              "an",
-              "and",
-              "or",
-              "but",
-              "to",
-              "in",
-              "on",
-              "for",
-              "at",
-              "by",
-              "with",
-            ].includes(w) && !allowed.includes(w)
+            (this.options.entityPreprocessing?.stopWords || []).includes(w) &&
+            !allowed.includes(w)
         )
       ) {
         continue;
@@ -1035,6 +1052,11 @@ class ProductionHypergraphParser {
    * @private
    */
   getBM25VectorForToken(token) {
+    if (!this.bm25) return {};
+    const useCache = this.options?.bm25?.cacheVectors !== false;
+    if (!useCache) {
+      return this.bm25.vectorOf([token]);
+    }
     if (!this._vectorCache) this._vectorCache = new Map();
     const key = `t:${token}`;
     if (this._vectorCache.has(key)) return this._vectorCache.get(key);
