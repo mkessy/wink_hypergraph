@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { atom, hedge } from "../src/hg/model.js";
 import * as HG from "../src/memory/Hypergraph.js";
 import { toStr } from "../src/hg/print.js";
-import { Chunk, HashMap } from "effect";
+import { Chunk } from "effect";
 import {
   findByPattern,
   findByPatternWithBindings,

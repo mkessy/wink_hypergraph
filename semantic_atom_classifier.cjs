@@ -791,21 +791,12 @@ class SemanticAtomClassifier {
    * Process complete text and assign semantic atom types
    */
   classifyText(text) {
-    console.log(`\nClassifying text: "${text}"`);
-    console.log("=".repeat(50));
-
     const tokens = this.processText(text);
     const results = [];
 
     tokens.forEach((tokenFeatures, index) => {
       const prediction = this.predictToken(tokenFeatures);
       results.push(prediction);
-
-      console.log(
-        `${index + 1}. ${tokenFeatures.token} -> ${
-          prediction.prediction
-        } (conf: ${(prediction.confidence * 100).toFixed(1)}%)`
-      );
     });
 
     return results;

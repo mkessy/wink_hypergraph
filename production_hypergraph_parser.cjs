@@ -11,7 +11,7 @@ const winkNLP = require("wink-nlp");
 const model = require("wink-eng-lite-web-model");
 const BM25Vectorizer = require("wink-nlp/utilities/bm25-vectorizer");
 const similarity = require("wink-nlp/utilities/similarity");
-const SemanticAtomClassifier = require("./semantic_atom_classifier");
+const SemanticAtomClassifier = require("./semantic_atom_classifier.cjs");
 /*
 similarity.bow.cosine(bowA, bowB)	Measures similarity between the two BoWs using cosine similarity.
 similarity.set.tversky(setA, setB[, alpha, beta])	Measures similarity between the two sets using Tversky method. The default values for both alpha & beta is 0.5. You can get Jaccard similarity or Sørensen-Dice by using appropriate values for alpha & beta.

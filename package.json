@@ -23,9 +23,13 @@
     "lint": "eslint \"**/{src,test,examples,scripts,dtslint}/**/*.{ts,mjs}\"",
     "lint-fix": "pnpm lint --fix",
     "test": "vitest",
+    "verify": "tsx scripts/verify.ts",
+    "perf": "tsx scripts/performance.ts",
     "coverage": "vitest --coverage"
   },
   "dependencies": {
+    "@effect/platform": "^0.90.0",
+    "@effect/platform-node": "^0.94.2",
     "@effect/printer": "^0.45.0",
     "compromise": "^14.14.4",
     "csv-parser": "^3.2.0",
