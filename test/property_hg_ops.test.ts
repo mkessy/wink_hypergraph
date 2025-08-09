@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import { Schema as S } from "effect";
-import * as Arb from "effect/Arbitrary";
-import { atom, hedge, Atom, Hedge, isAtom, isHedge } from "../src/hg/model.js";
+import { atom, hedge, Hedge } from "../src/hg/model.js";
 import { toStr } from "../src/hg/print.js";
 import { checkCorrectness, typeOf } from "../src/hg/ops.js";
 

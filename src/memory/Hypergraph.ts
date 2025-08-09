@@ -1,6 +1,6 @@
 import { HashMap, HashSet, Chunk, Option, pipe, Effect } from "effect";
 import * as Stream from "effect/Stream";
-import { Atom, Hedge, isAtom } from "../hg/model.js";
+import { atom, Atom, hedge, Hedge, isAtom } from "../hg/model.js";
 import { toStr } from "../hg/print.js";
 import { connector, typeOf, argrolesOf, atoms } from "../hg/ops.js";
 import { match as edgeMatches } from "../patterns/matcher.js";
@@ -26,6 +26,10 @@ export interface Hypergraph {
     HashMap.HashMap<string, HashSet.HashSet<string>>
   >;
   readonly byArgsMultiset: HashMap.HashMap<string, HashSet.HashSet<string>>;
+  readonly byRootDepth: HashMap.HashMap<
+    number,
+    HashMap.HashMap<string, HashSet.HashSet<string>>
+  >;
 }
 
 export const make = (): Hypergraph => ({
@@ -40,6 +44,7 @@ export const make = (): Hypergraph => ({
   byArgroleSet: HashMap.empty(),
   byArgRootN: HashMap.empty(),
   byArgsMultiset: HashMap.empty(),
+  byRootDepth: HashMap.empty(),
 });
 
 const addToIndex = (
@@ -171,6 +176,18 @@ export const insert = (hg: Hypergraph, edge: Hedge): Hypergraph => {
     const keyMs = rootsForMultiset.sort().join("|");
     byArgsMultiset = addToIndex(byArgsMultiset, keyMs, key);
   }
+  // byRootDepth (depth-aware indexing): atoms at distance from edge root
+  let byRootDepth = hg.byRootDepth;
+  const indexDepth = (node: Atom | Hedge, depth: number) => {
+    if (isAtom(node)) {
+      const root = (node as Atom).text.split("/")[0] ?? "";
+      if (root) byRootDepth = addToNestedIndex(byRootDepth, depth, root, key);
+      return;
+    }
+    const h = node as Hedge;
+    for (const it of h.items as any) indexDepth(it as any, depth + 1);
+  };
+  indexDepth(edge as any, 0);
   return {
     kv,
     byConnector,
@@ -183,6 +200,7 @@ export const insert = (hg: Hypergraph, edge: Hedge): Hypergraph => {
     byArgroleSet,
     byArgRootN,
     byArgsMultiset,
+    byRootDepth,
   };
 };
 
@@ -247,6 +265,19 @@ export const remove = (hg: Hypergraph, edge: Hedge): Hypergraph => {
     const keyMs = rootsForMultiset.sort().join("|");
     byArgsMultiset = removeFromIndex(byArgsMultiset, keyMs, key);
   }
+  // byRootDepth removal mirrors insertion
+  let byRootDepth = hg.byRootDepth;
+  const unindexDepth = (node: Atom | Hedge, depth: number) => {
+    if (isAtom(node)) {
+      const root = (node as Atom).text.split("/")[0] ?? "";
+      if (root)
+        byRootDepth = removeFromNestedIndex(byRootDepth, depth, root, key);
+      return;
+    }
+    const h = node as Hedge;
+    for (const it of h.items as any) unindexDepth(it as any, depth + 1);
+  };
+  unindexDepth(edge as any, 0);
   return {
     kv,
     byConnector,
@@ -259,6 +290,7 @@ export const remove = (hg: Hypergraph, edge: Hedge): Hypergraph => {
     byArgroleSet,
     byArgRootN,
     byArgsMultiset,
+    byRootDepth,
   };
 };
 
@@ -397,6 +429,20 @@ export const streamByPatternWithBindings = (
       bindings: (res as Option.Some<Bindings>).value,
     }))
   );
+
+// Additional stream finders leveraging permutation-friendly indexes
+export const streamByArgroleSet = (
+  hg: Hypergraph,
+  lettersNormalized: string
+): Stream.Stream<Hedge> =>
+  keysToEdgeStream(hg, keysFromIndex(hg.byArgroleSet, lettersNormalized));
+
+export const streamByArgRootN = (
+  hg: Hypergraph,
+  position: number,
+  root: string
+): Stream.Stream<Hedge> =>
+  keysToEdgeStream(hg, keysFromNestedIndex(hg.byArgRootN, position, root));
 
 export interface EdgeWithBindings {
   readonly edge: Hedge;
@@ -655,3 +701,72 @@ export const star = (
 
 export const degree = (hg: Hypergraph, atomRootOrText: string): number =>
   HashSet.size(keysFromIndex(hg.byRoot, atomRootOrText));
+
+// Deep degree: count of edges containing any occurrence (including nested) of a root
+export const deepDegree = (hg: Hypergraph, atomRootOrText: string): number =>
+  HashSet.size(keysFromIndex(hg.byRoot, atomRootOrText));
+
+export const degreeAtDepth = (
+  hg: Hypergraph,
+  atomRootOrText: string,
+  depth: number
+): number =>
+  HashSet.size(keysFromNestedIndex(hg.byRootDepth, depth, atomRootOrText));
+
+export const streamByRootAtDepth = (
+  hg: Hypergraph,
+  atomRootOrText: string,
+  depth: number
+): Stream.Stream<Hedge> =>
+  keysToEdgeStream(
+    hg,
+    keysFromNestedIndex(hg.byRootDepth, depth, atomRootOrText)
+  );
+
+// Simple sequence API using attributes and a sequence connector name
+const SEQ_ATTR = "+/B/._seq_attrs";
+const SEQ_CONN = "+/B/._seq";
+
+export const addToSequence = (
+  hg: Hypergraph,
+  name: string,
+  edge: Hedge,
+  primary = true
+): Hypergraph => {
+  const sizeKey = `(${SEQ_ATTR} ${name})`;
+  const currentSize = Number(
+    HashMap.get(hg.attrs, sizeKey)
+      .pipe((o) =>
+        o._tag === "Some" ? o.value : HashMap.empty<string, string>()
+      )
+      .pipe((m) => HashMap.get(m, "size"))
+      .pipe((o) => (o._tag === "Some" ? o.value : "0"))
+  );
+  // sequence edge holds: (SEQ_CONN name pos edge)
+  const seqEdge = hedge([
+    atom(SEQ_CONN),
+    atom(name),
+    atom(String(currentSize)),
+    edge as any,
+  ] as any);
+  let nextHg = insert(hg, seqEdge);
+  nextHg = setAttribute(
+    nextHg,
+    hedge([atom(SEQ_ATTR), atom(name)] as any),
+    "size",
+    String(currentSize + 1)
+  );
+  return nextHg;
+};
+
+export const sequence = (hg: Hypergraph, name: string): Chunk.Chunk<Hedge> =>
+  streamByConnector(hg, SEQ_CONN)
+    .pipe(Stream.runCollect, Effect.runSync)
+    .pipe((c) =>
+      Chunk.filter(
+        c,
+        (e) =>
+          isAtom(e.items?.[1] as any) && (e.items?.[1] as any).text === name
+      )
+    )
+    .pipe((c) => Chunk.map(c, (e) => e.items?.[3] as Hedge));

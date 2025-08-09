@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { hedgeFromString } from "../src/hg/parse.js";
-import * as Option from "effect/Option";
 import { atoms, allAtoms, sizeOf, depthOf, rootsOf } from "../src/hg/ops.js";
 import { toStr } from "../src/hg/print.js";
 
