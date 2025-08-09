@@ -467,15 +467,30 @@ const candidateKeysForPattern = (
   const candidateSets: Array<HashSet.HashSet<string>> = [];
   // connector
   const conn = pattern.items?.[0];
+  let hasUnorderedRoles = false;
   if (conn && isAtom(conn as any)) {
     const text = (conn as Atom).text;
     if (isConcreteAtomText(text)) {
       candidateSets.push(keysFromIndex(hg.byConnector, text));
     }
+    // detect unordered roles on connector (e.g., Pd.{os})
+    const parts = text.split("/");
+    if (parts.length > 1) {
+      const typeParts = parts[1].split(".");
+      if (typeParts.length > 1) {
+        const roles = typeParts[1];
+        hasUnorderedRoles = roles.length > 0 && roles[0] === "{";
+      }
+    }
   }
   // first arg (head)
   const arg1 = pattern.items?.[1];
-  if (arg1 && isAtom(arg1 as any) && isConcreteAtomText((arg1 as Atom).text)) {
+  if (
+    !hasUnorderedRoles &&
+    arg1 &&
+    isAtom(arg1 as any) &&
+    isConcreteAtomText((arg1 as Atom).text)
+  ) {
     const text = (arg1 as Atom).text;
     const root = text.split("/")[0] ?? "";
     const useRoot = text.includes("{") || text.includes(".");
@@ -484,6 +499,26 @@ const candidateKeysForPattern = (
         ? keysFromIndex(hg.byRoot, root)
         : keysFromIndex(hg.byHeadAtom, text)
     );
+  }
+  // detect unordered roles and add argrole indexes from head predicate (arg1)
+  if (arg1 && isAtom(arg1 as any)) {
+    const text = (arg1 as Atom).text;
+    const parts = text.split("/");
+    if (parts.length > 1) {
+      const typeParts = parts[1].split(".");
+      if (typeParts.length > 1) {
+        const roles = typeParts[1];
+        hasUnorderedRoles =
+          hasUnorderedRoles || (roles.length > 0 && roles[0] === "{");
+        const letters = roles[0] === "{" ? roles.slice(1, -1) : roles;
+        for (const r of letters.replace(/[\,\s]/g, "")) {
+          candidateSets.push(keysFromIndex(hg.byArgrole, r));
+        }
+        const norm = letters.replace(/[\s,]/g, "").split("").sort().join("");
+        if (norm.length > 0)
+          candidateSets.push(keysFromIndex(hg.byArgroleSet, norm));
+      }
+    }
   }
   // arity (number of args)
   const arity = Math.max(0, (pattern.items?.length ?? 1) - 1);
@@ -521,12 +556,15 @@ const candidateKeysForPattern = (
       }
     }
   }
-  // positional argument roots (if concrete)
-  for (let i = 1; i <= arity; i++) {
-    const arg = pattern.items?.[i] as any;
-    if (arg && isAtom(arg) && isConcreteAtomText((arg as Atom).text)) {
-      const root = (arg as Atom).text.split("/")[0] ?? "";
-      if (root) candidateSets.push(keysFromNestedIndex(hg.byArgRootN, i, root));
+  // positional argument roots (if concrete) only when ordered roles
+  if (!hasUnorderedRoles) {
+    for (let i = 1; i <= arity; i++) {
+      const arg = pattern.items?.[i] as any;
+      if (arg && isAtom(arg) && isConcreteAtomText((arg as Atom).text)) {
+        const root = (arg as Atom).text.split("/")[0] ?? "";
+        if (root)
+          candidateSets.push(keysFromNestedIndex(hg.byArgRootN, i, root));
+      }
     }
   }
   // multiset of argument roots (unordered)
