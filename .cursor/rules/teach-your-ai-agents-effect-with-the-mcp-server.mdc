@@ -1,9 +1,6 @@
 ---
-description: "Use the MCP server to provide live application context to AI coding agents, enabling more accurate assistance."
-globs:
-alwaysApply: false
+alwaysApply: true
 ---
-
 - Title: Teach your AI Agents Effect with the MCP Server
 - Id: teach-your-ai-agents-effect-with-the-mcp-server
 - Skill Level: advanced

@@ -1,9 +1,6 @@
 ---
-description: "Use Effect.withSpan to create custom tracing spans for important operations."
-globs:
-alwaysApply: false
+alwaysApply: true
 ---
-
 - Title: Trace Operations Across Services with Spans
 - Id: trace-operations-with-spans
 - Skill Level: intermediate

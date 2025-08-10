@@ -1,9 +1,6 @@
 ---
-description: "Leverage Effect's built-in structured logging."
-globs:
-alwaysApply: false
+alwaysApply: true
 ---
-
 - Title: Leverage Effect's Built-in Structured Logging
 - Id: leverage-structured-logging
 - Skill Level: intermediate

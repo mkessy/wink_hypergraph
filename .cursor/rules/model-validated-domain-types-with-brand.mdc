@@ -1,9 +1,6 @@
 ---
-description: "Model validated domain types with Brand."
-globs:
-alwaysApply: false
+alwaysApply: true
 ---
-
 - Title: Model Validated Domain Types with Brand
 - Id: model-validated-domain-types-with-brand
 - Skill Level: intermediate

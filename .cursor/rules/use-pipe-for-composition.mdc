@@ -1,7 +1,5 @@
 ---
-description: "Use .pipe for composition."
-globs:
-alwaysApply: false
+alwaysApply: true
 ---
 
 - Title: Use .pipe for Composition

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { Schema as S } from "effect";
+import { Schema as S, Effect } from "effect";
+import { KnowledgeStore, KnowledgeStoreLive } from "../src/knowledge/Store.js";
 import { EncodedHyperedge } from "../src/knowledge/Hyperedge.js";
 
 describe("EncodedHyperedge", () => {
@@ -17,5 +18,18 @@ describe("EncodedHyperedge", () => {
     const decoded = decode(input);
     const re = encode(decoded);
     expect(re).toEqual({ ...input, metadata: undefined });
+  });
+
+  it("invalid input maps to InvalidEncodedHyperedge", async () => {
+    const eff = Effect.gen(function* () {
+      const svc = yield* KnowledgeStore;
+      // missing fields
+      return yield* svc.putEncoded({} as any);
+    }).pipe(Effect.provide(KnowledgeStoreLive), Effect.either);
+    const res = await Effect.runPromise(eff);
+    expect(res._tag).toBe("Left");
+    if (res._tag === "Left") {
+      expect((res.left as any)._tag).toBe("InvalidEncodedHyperedge");
+    }
   });
 });

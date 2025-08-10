@@ -15,7 +15,11 @@ import {
   HyperedgeEncoding,
   OperationRef,
 } from "./Hyperedge.js";
-import { NotFoundError, InvalidHedgeString } from "./Errors.js";
+import {
+  NotFoundError,
+  InvalidHedgeString,
+  InvalidEncodedHyperedge,
+} from "./Errors.js";
 import { OperationRegistry } from "./Operations.js";
 import { parseHedgeStringEffect } from "./HedgeString.js";
 import * as MemoryHg from "../memory/Hypergraph.js";
@@ -30,7 +34,9 @@ export class KnowledgeStore extends Context.Tag("KnowledgeStore")<
     ) => Effect.Effect<Hash>;
     readonly get: (id: Hash) => Effect.Effect<Hyperedge<any>, NotFoundError>;
     // Encoded transport contracts
-    readonly putEncoded: (encoded: unknown) => Effect.Effect<Hash>;
+    readonly putEncoded: (
+      encoded: unknown
+    ) => Effect.Effect<Hash, InvalidEncodedHyperedge>;
     readonly getEncoded: (
       id: Hash
     ) => Effect.Effect<EncodedHyperedge, NotFoundError>;
@@ -112,6 +118,10 @@ export const KnowledgeStoreLive: Layer.Layer<KnowledgeStore> = Layer.effect(
     const putEncodedCounter = Metric.counter("knowledge_put_encoded_total");
     const byTypeCounter = Metric.counter("knowledge_by_type_total");
     const resolveCounter = Metric.counter("knowledge_resolve_pending_total");
+    const resolveTimer = Metric.timer(
+      "knowledge_resolve_pending_duration_ms",
+      "Duration of resolvePending"
+    );
 
     return KnowledgeStore.of({
       put: (edge) =>
@@ -144,25 +154,38 @@ export const KnowledgeStoreLive: Layer.Layer<KnowledgeStore> = Layer.effect(
         ),
 
       putEncoded: (unknownEncoded) =>
-        modify((s) => {
-          const decode = S.decodeUnknownSync(EncodedHyperedge as any);
-          const encoded = decode(unknownEncoded) as InstanceType<
-            typeof EncodedHyperedge
-          >;
-          const id = computeHash((encoded as any).canonical);
-          const edge: Hyperedge<any> = {
-            id,
-            encoding: { _tag: (encoded as any).type } as any,
-            atoms: (encoded as any).atoms,
-            proof: (encoded as any).proof,
-            deps: (encoded as any).deps,
-            status: (encoded as any).status,
-            metadata: (encoded as any).metadata,
-          };
-          const map = HashMap.set(s.map, id, edge);
-          const withIdx = indexAdd({ ...s, map }, edge);
-          return [withIdx, id];
-        }).pipe(Effect.tap(() => Metric.increment(putEncodedCounter))),
+        (
+          S.decodeUnknown(EncodedHyperedge as any)(
+            unknownEncoded
+          ) as Effect.Effect<any>
+        ).pipe(
+          Effect.mapError(
+            (pe) =>
+              new InvalidEncodedHyperedge({
+                input: unknownEncoded,
+                message: "Invalid encoded hyperedge",
+                cause: pe as any,
+              })
+          ),
+          Effect.flatMap((encoded) => {
+            const id = computeHash((encoded as any).canonical);
+            const edge: Hyperedge<any> = {
+              id,
+              encoding: { _tag: (encoded as any).type } as any,
+              atoms: (encoded as any).atoms,
+              proof: (encoded as any).proof,
+              deps: (encoded as any).deps,
+              status: (encoded as any).status,
+              metadata: (encoded as any).metadata,
+            };
+            return modify((s) => {
+              const map = HashMap.set(s.map, id, edge);
+              const withIdx = indexAdd({ ...s, map }, edge);
+              return [withIdx, id];
+            });
+          }),
+          Effect.tap(() => Metric.increment(putEncodedCounter))
+        ),
 
       getEncoded: (id) =>
         read((s) => HashMap.get(s.map, id)).pipe(
@@ -175,7 +198,7 @@ export const KnowledgeStoreLive: Layer.Layer<KnowledgeStore> = Layer.effect(
                 })
               );
             const stored = o.value;
-            const encoded = new (EncodedHyperedge as any)({
+            const encoded = (EncodedHyperedge as any).make({
               id: stored.id,
               type: (stored.encoding as any)._tag,
               atoms: stored.atoms,
@@ -222,7 +245,7 @@ export const KnowledgeStoreLive: Layer.Layer<KnowledgeStore> = Layer.effect(
             if (v._tag === "Some") {
               const e = v.value;
               out.push(
-                new (EncodedHyperedge as any)({
+                (EncodedHyperedge as any).make({
                   id: e.id,
                   type: (e.encoding as any)._tag,
                   atoms: e.atoms,
@@ -259,6 +282,12 @@ export const KnowledgeStoreLive: Layer.Layer<KnowledgeStore> = Layer.effect(
                 const resolved = yield* registry.execute(
                   (edge as any).proof as OperationRef
                 );
+                // Enforce expected tag match
+                const expected = ((edge as any).proof as OperationRef).expected;
+                const actual = (resolved as any).encoding?._tag ?? "";
+                if (expected && actual && expected !== (actual as any)) {
+                  return 0;
+                }
                 // Write back proven edge, preserving id and type
                 yield* modify((s) => {
                   const previous = HashMap.get(s.map, (edge as any).id);
@@ -283,7 +312,7 @@ export const KnowledgeStoreLive: Layer.Layer<KnowledgeStore> = Layer.effect(
           // Increment once; if needed, replace with a histogram/gauge later
           yield* Metric.increment(resolveCounter);
           return count;
-        }),
+        }).pipe(Metric.trackDuration(resolveTimer)),
 
       findByPatternEncoded: (patternText) =>
         Effect.gen(function* () {
@@ -308,7 +337,7 @@ export const KnowledgeStoreLive: Layer.Layer<KnowledgeStore> = Layer.effect(
             if (opt._tag === "Some") {
               const e = opt.value;
               out.push(
-                new (EncodedHyperedge as any)({
+                (EncodedHyperedge as any).make({
                   id: e.id,
                   type: (e.encoding as any)._tag,
                   atoms: (e as any).atoms,
@@ -321,7 +350,7 @@ export const KnowledgeStoreLive: Layer.Layer<KnowledgeStore> = Layer.effect(
             }
           }
           return out as any;
-        }),
+        }).pipe(Effect.tap(() => Metric.increment(byTypeCounter))),
     });
   })
 );

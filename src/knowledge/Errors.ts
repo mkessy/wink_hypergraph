@@ -10,3 +10,11 @@ export class InvalidHedgeString extends Data.TaggedError("InvalidHedgeString")<{
   readonly message: string;
   readonly cause: Cause.Cause<ParseResult.ParseError>;
 }> {}
+
+export class InvalidEncodedHyperedge extends Data.TaggedError(
+  "InvalidEncodedHyperedge"
+)<{
+  readonly input: unknown;
+  readonly message: string;
+  readonly cause: Cause.Cause<ParseResult.ParseError>;
+}> {}
